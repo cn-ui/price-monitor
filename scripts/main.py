@@ -395,7 +395,8 @@ def load_config():
             "enabled": ["douyin_url", "official", "maishou"],  # 按优先级排序，douyin_url 无需 API Key
         },
         # 通知渠道配置
-        "notify_channel": "json",  # json/webhook/email/all(逗号分隔)
+        "notify_channel": "serverchan",  # json/webhook/email/serverchan/all
+        "serverchan_key": "SCT358040Tx6tjtyqRuKz5kPDsoibpRxyA",
         "notify_webhook_url": "",
         "notify_email_smtp": "",
         "notify_email_from": "",
@@ -479,7 +480,7 @@ def send_notification(title: str, message: str, config: Optional[Dict] = None):
     channels = [c.strip() for c in channel.split(",")]
 
     if "all" in channels:
-        channels = ["json", "webhook", "email"]
+        channels = ["json", "webhook", "email", "serverchan"]
 
     for ch in channels:
         if ch == "json":
@@ -488,6 +489,8 @@ def send_notification(title: str, message: str, config: Optional[Dict] = None):
             _notify_webhook(title, message, config)
         elif ch == "email":
             _notify_email(title, message, config)
+        elif ch == "serverchan":
+            _notify_serverchan(title, message, config)
 
 
 def _notify_json(title: str, message: str):
@@ -657,6 +660,37 @@ def get_recent_price_trend(monitor_id: int, count: int = 3) -> Optional[str]:
     if all_down:
         return "down"
     return None
+
+
+def _notify_serverchan(title: str, message: str, config: Dict):
+    """通过 Server酱 推送微信消息。"""
+    serverchan_key = config.get("serverchan_key", "")
+    if not serverchan_key:
+        return
+
+    try:
+        import urllib.request
+        import urllib.parse
+
+        data = urllib.parse.urlencode({
+            "title": title,
+            "desp": message,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://sctapi.ftqq.com/{serverchan_key}.send",
+            data=data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode()
+            result = json.loads(body)
+            if result.get("code") == 0:
+                print(f"🔔 通知已发送(微信):{title}")
+            else:
+                print(f"⚠️ 微信通知失败:{result.get('message', '未知错误')}")
+    except Exception as e:
+        print(f"⚠️ 微信通知失败:{e}")
 
 
 def check_price_anomaly(current_price: float, last_price: float, monitor_info: Dict, config: Dict) -> Optional[List[Dict]]:
