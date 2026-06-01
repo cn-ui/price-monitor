@@ -610,6 +610,70 @@ class FallbackDataSource(DataSource):
 
 
 # ─────────────────────────────────────────────
+# 抖音短链接数据源（无需 API Key）
+# ─────────────────────────────────────────────
+
+class DouyinUrlDataSource(DataSource):
+    """通过抖音短链接提取商品数据，无需邀请码。
+
+    goods_id 可传入:
+      - 短链接: https://v.douyin.com/xxxxx/
+      - 商品 ID: 3773974893260046630
+      - 完整链接: https://haohuo.jinritemai.com/...
+    """
+
+    @property
+    def name(self) -> str:
+        return "douyin_url"
+
+    async def get_goods_detail(
+        self, session: aiohttp.ClientSession, goods_id: str, source: Any, **kwargs
+    ) -> Optional[Dict[str, Any]]:
+        import json
+        from urllib.parse import urlparse, parse_qs
+
+        url = goods_id
+        if url and url.isdigit():
+            url = f"https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id={url}"
+
+        if "v.douyin.com" in url:
+            try:
+                async with session.get(url, allow_redirects=True,
+                                       timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    url = str(resp.url)
+            except Exception as e:
+                logger.warning("Douyin URL redirect failed: %s", e)
+                return None
+
+        try:
+            parsed = urlparse(url)
+            params = parse_qs(parsed.query)
+            gd = params.get("goods_detail", [None])[0]
+            if not gd:
+                return None
+            goods = json.loads(gd)
+            return {
+                "title": goods.get("title", ""),
+                "actualPrice": goods.get("min_price", 0) / 100,
+                "originalPrice": goods.get("max_price", 0) / 100,
+                "couponPrice": 0,
+                "sales": goods.get("sales", 0),
+                "img": goods.get("img", {}).get("url_list", [""])[0] if goods.get("img") else "",
+                "goodsId": params.get("id", [goods.get("goodsId", "")])[0],
+                "sourceType": 7,
+            }
+        except Exception as e:
+            logger.warning("Douyin URL parse failed: %s", e)
+            return None
+
+    async def search_goods(
+        self, session: aiohttp.ClientSession, keyword: str, source: Any,
+        limit: int = 10, **kwargs
+    ) -> List[Dict[str, Any]]:
+        return []
+
+
+# ─────────────────────────────────────────────
 # 数据源工厂
 # ─────────────────────────────────────────────
 
@@ -617,6 +681,7 @@ class FallbackDataSource(DataSource):
 _REGISTRY: Dict[str, type] = {
     "maishou": MaishouDataSource,
     "official": MockOfficialDataSource,
+    "douyin_url": DouyinUrlDataSource,
     "xiaohongshu_official": XiaohongshuOfficialDataSource,
     "dewu_official": DewuOfficialDataSource,
     "vipshop_official": VipshopOfficialDataSource,
