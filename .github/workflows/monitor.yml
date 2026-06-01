@@ -14,19 +14,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装 uv
-        uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install aiohttp
 
       - name: 初始化数据库并添加商品
         run: |
-          # 首次运行时创建数据库并添加监控商品
-          uv run scripts/main.py add --source=7 \
+          cd scripts
+          python main.py add --source=7 \
             --id="https://v.douyin.com/wiGElh4ICQ0/" \
             --name="卟立Ex cold pro磁吸散热器" \
             --target_price=233
 
       - name: 检查价格
-        run: uv run scripts/auto-check.py
+        run: |
+          cd scripts
+          python auto-check.py
 
       - name: 提交更新
         run: |
