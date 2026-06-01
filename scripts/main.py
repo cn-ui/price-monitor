@@ -392,7 +392,7 @@ def load_config():
         "invite_code": "",              # 买手 API 邀请码(可选)
         # 多数据源配置
         "data_sources": {
-            "enabled": ["official", "maishou"],  # 按优先级排序，默认 fallback 模式
+            "enabled": ["douyin_url", "official", "maishou"],  # 按优先级排序，douyin_url 无需 API Key
         },
         # 通知渠道配置
         "notify_channel": "json",  # json/webhook/email/all(逗号分隔)
