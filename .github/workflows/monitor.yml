@@ -5,6 +5,9 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -14,20 +17,21 @@ jobs:
       - name: 安装 uv
         uses: astral-sh/setup-uv@v5
 
-      - name: 添加监控商品
+      - name: 初始化数据库并添加商品
         run: |
+          # 首次运行时创建数据库并添加监控商品
           uv run scripts/main.py add --source=7 \
             --id="https://v.douyin.com/wiGElh4ICQ0/" \
             --name="卟立Ex cold pro磁吸散热器" \
-            --target_price=233 2>/dev/null || true
+            --target_price=233
 
       - name: 检查价格
         run: uv run scripts/auto-check.py
 
-      - name: 提交价格记录
+      - name: 提交更新
         run: |
           git config user.name "Price Bot"
           git config user.email "bot@example.com"
           git add data/
-          git diff --staged --quiet || git commit -m "更新价格记录 [skip ci]"
+          git diff --staged --quiet || git commit -m "自动更新价格记录 [skip ci]"
           git push
